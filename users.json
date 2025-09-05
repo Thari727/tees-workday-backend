@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "name": "Tee Johnson",
+    "email": "tee@example.com",
+    "role": "Admin",
+    "password": "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z"
+  },
+  {
+    "id": 2,
+    "name": "Alex Chen",
+    "email": "alex@example.com",
+    "role": "Project Manager",
+    "password": "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z"
+  },
+  {
+    "id": 3,
+    "name": "Maria Garcia",
+    "email": "maria@example.com",
+    "role": "Team Member",
+    "password": "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z"
+  },
+  {
+    "id": 4,
+    "name": "David Wilson",
+    "email": "david@example.com",
+    "role": "Team Member",
+    "password": "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z"
+  }
+]
