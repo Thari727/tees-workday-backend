@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Critical fix: Use Render's port or default to 3000
 
 // Middleware
 app.use(cors());
@@ -25,10 +25,10 @@ try {
   } else {
     // Default users with hashed passwords
     users = [
-      { id: 1, name: "Tee Johnson", email: "tee@example.com", role: "Admin", password: "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z" },
-      { id: 2, name: "Alex Chen", email: "alex@example.com", role: "Project Manager", password: "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z" },
-      { id: 3, name: "Maria Garcia", email: "maria@example.com", role: "Team Member", password: "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z" },
-      { id: 4, name: "David Wilson", email: "david@example.com", role: "Team Member", password: "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z" }
+      { id: 1, name: "Tee Johnson", email: "tee@example.com", role: "Admin", password: "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z" },
+      { id: 2, name: "Alex Chen", email: "alex@example.com", role: "Project Manager", password: "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z" },
+      { id: 3, name: "Maria Garcia", email: "maria@example.com", role: "Team Member", password: "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z" },
+      { id: 4, name: "David Wilson", email: "david@example.com", role: "Team Member", password: "$2a$10$rOzYH8kC9X7hqy1uQqJZBeY5Q5Z5Z5Z5Z5Z5Z5Z5Z5Z5Z" }
     ];
     saveUsers();
   }
@@ -46,7 +46,12 @@ const JWT_SECRET = 'your-secret-key';
 
 // Routes
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  res.send('Tee\'s Workday Backend is running!');
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', message: 'Server is healthy' });
 });
 
 // Login endpoint
@@ -157,3 +162,5 @@ app.delete('/api/users/:id', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+module.exports = app;
