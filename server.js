@@ -9,9 +9,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware - CORS FIX ADDED HERE
+// Middleware - CORS configured for your Netlify URL
 app.use(cors({
-    origin: ['https://curious-lollipop-1764df.netlify.app', 'http://localhost:3000'],
+    origin: [
+        'https://keen-lamington-c29374.netlify.app', // Your Netlify URL
+        'http://localhost:3000' // For local development
+    ],
     credentials: true
 }));
 app.use(bodyParser.json());
