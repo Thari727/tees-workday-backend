@@ -38,8 +38,53 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
+// Project schema
+const projectSchema = new mongoose.Schema({
+    name: String,
+    description: String,
+    startDate: Date,
+    dueDate: Date,
+    manager: String,
+    tasks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Task' }],
+    showTasks: { type: Boolean, default: true }
+});
+
+const Project = mongoose.model('Project', projectSchema);
+
+// Task schema
+const taskSchema = new mongoose.Schema({
+    name: String,
+    description: String,
+    assignee: String,
+    support: String,
+    startDate: Date,
+    dueDate: Date,
+    status: { type: String, default: 'not-started' }, // not-started, in-progress, completed
+    projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project' }
+});
+
+const Task = mongoose.model('Task', taskSchema);
+
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'tees-workday-secret-key-2023';
+
+// Middleware to verify JWT token
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Access token required' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: 'Invalid or expired token' });
+        }
+        req.user = user;
+        next();
+    });
+};
 
 // Routes
 app.get('/', (req, res) => {
@@ -123,6 +168,81 @@ app.post('/api/users', async (req, res) => {
         res.json(userWithoutPassword);
     } catch (error) {
         console.error('Error adding user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get all projects with tasks
+app.get('/api/projects', authenticateToken, async (req, res) => {
+    try {
+        const projects = await Project.find().populate('tasks');
+        res.json(projects);
+    } catch (error) {
+        console.error('Error fetching projects:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Create new project
+app.post('/api/projects', authenticateToken, async (req, res) => {
+    try {
+        const { name, description, startDate, dueDate, manager } = req.body;
+        
+        const newProject = new Project({
+            name,
+            description,
+            startDate,
+            dueDate,
+            manager,
+            tasks: []
+        });
+        
+        await newProject.save();
+        res.json(newProject);
+    } catch (error) {
+        console.error('Error creating project:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get tasks for a project
+app.get('/api/projects/:projectId/tasks', authenticateToken, async (req, res) => {
+    try {
+        const tasks = await Task.find({ projectId: req.params.projectId });
+        res.json(tasks);
+    } catch (error) {
+        console.error('Error fetching tasks:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Create new task
+app.post('/api/tasks', authenticateToken, async (req, res) => {
+    try {
+        const { name, description, assignee, support, startDate, dueDate, status, projectId } = req.body;
+        
+        const newTask = new Task({
+            name,
+            description,
+            assignee,
+            support,
+            startDate,
+            dueDate,
+            status: status || 'not-started',
+            projectId
+        });
+        
+        await newTask.save();
+        
+        // Add task to project
+        await Project.findByIdAndUpdate(
+            projectId,
+            { $push: { tasks: newTask._id } }
+        );
+        
+        res.json(newTask);
+    } catch (error) {
+        console.error('Error creating task:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
