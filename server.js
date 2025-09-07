@@ -59,7 +59,7 @@ const taskSchema = new mongoose.Schema({
     support: String,
     startDate: Date,
     dueDate: Date,
-    status: { type: String, default: 'not-started' }, // not-started, in-progress, completed
+    status: { type: String, default: 'not-started' },
     projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project' }
 });
 
@@ -92,13 +92,96 @@ app.get('/', (req, res) => {
 });
 
 // Get all users
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', authenticateToken, async (req, res) => {
     try {
         const users = await User.find({}, { password: 0 });
-        console.log('Sending users:', users);
         res.json(users);
     } catch (error) {
         console.error('Error in /api/users:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Create new user (Admin only)
+app.post('/api/users', authenticateToken, async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'Admin') {
+            return res.status(403).json({ error: 'Only admins can create users' });
+        }
+
+        const { name, email, role, password } = req.body;
+        
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ error: 'User already exists' });
+        }
+        
+        // Create new user
+        const newUser = new User({
+            name,
+            email,
+            role: role || 'Team Member',
+            password: password || 'password123'
+        });
+        
+        await newUser.save();
+        
+        // Return user without password
+        const userWithoutPassword = { ...newUser.toObject() };
+        delete userWithoutPassword.password;
+        res.json(userWithoutPassword);
+    } catch (error) {
+        console.error('Error adding user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update user (Admin only)
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'Admin') {
+            return res.status(403).json({ error: 'Only admins can update users' });
+        }
+
+        const { name, email, role } = req.body;
+        
+        const updatedUser = await User.findByIdAndUpdate(
+            req.params.id,
+            { name, email, role },
+            { new: true, select: '-password' }
+        );
+        
+        if (!updatedUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json(updatedUser);
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete user (Admin only)
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'Admin') {
+            return res.status(403).json({ error: 'Only admins can delete users' });
+        }
+
+        const deletedUser = await User.findByIdAndDelete(req.params.id);
+        
+        if (!deletedUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -123,7 +206,7 @@ app.post('/api/login', async (req, res) => {
         const token = jwt.sign(
             { id: user._id, email: user.email, role: user.role },
             JWT_SECRET,
-            { expiresIn: '1h' }
+            { expiresIn: '24h' }
         );
 
         res.json({
@@ -137,37 +220,6 @@ app.post('/api/login', async (req, res) => {
         });
     } catch (error) {
         console.error('Login error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Add new user
-app.post('/api/users', async (req, res) => {
-    try {
-        const { name, email, role, password } = req.body;
-        
-        // Check if user already exists
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({ error: 'User already exists' });
-        }
-        
-        // Create new user
-        const newUser = new User({
-            name,
-            email,
-            role,
-            password: password || 'password123'
-        });
-        
-        await newUser.save();
-        
-        // Return user without password
-        const userWithoutPassword = { ...newUser.toObject() };
-        delete userWithoutPassword.password;
-        res.json(userWithoutPassword);
-    } catch (error) {
-        console.error('Error adding user:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -201,6 +253,48 @@ app.post('/api/projects', authenticateToken, async (req, res) => {
         res.json(newProject);
     } catch (error) {
         console.error('Error creating project:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Update project
+app.put('/api/projects/:id', authenticateToken, async (req, res) => {
+    try {
+        const { name, description, startDate, dueDate, manager } = req.body;
+        
+        const updatedProject = await Project.findByIdAndUpdate(
+            req.params.id,
+            { name, description, startDate, dueDate, manager },
+            { new: true }
+        );
+        
+        if (!updatedProject) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+        
+        res.json(updatedProject);
+    } catch (error) {
+        console.error('Error updating project:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete project
+app.delete('/api/projects/:id', authenticateToken, async (req, res) => {
+    try {
+        // Delete all tasks associated with this project
+        await Task.deleteMany({ projectId: req.params.id });
+        
+        // Delete the project
+        const deletedProject = await Project.findByIdAndDelete(req.params.id);
+        
+        if (!deletedProject) {
+            return res.status(404).json({ error: 'Project not found' });
+        }
+        
+        res.json({ message: 'Project and associated tasks deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting project:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -247,6 +341,52 @@ app.post('/api/tasks', authenticateToken, async (req, res) => {
     }
 });
 
+// Update task
+app.put('/api/tasks/:id', authenticateToken, async (req, res) => {
+    try {
+        const { name, description, assignee, support, startDate, dueDate, status } = req.body;
+        
+        const updatedTask = await Task.findByIdAndUpdate(
+            req.params.id,
+            { name, description, assignee, support, startDate, dueDate, status },
+            { new: true }
+        );
+        
+        if (!updatedTask) {
+            return res.status(404).json({ error: 'Task not found' });
+        }
+        
+        res.json(updatedTask);
+    } catch (error) {
+        console.error('Error updating task:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete task
+app.delete('/api/tasks/:id', authenticateToken, async (req, res) => {
+    try {
+        const task = await Task.findById(req.params.id);
+        if (!task) {
+            return res.status(404).json({ error: 'Task not found' });
+        }
+        
+        // Remove task from project
+        await Project.findByIdAndUpdate(
+            task.projectId,
+            { $pull: { tasks: task._id } }
+        );
+        
+        // Delete the task
+        await Task.findByIdAndDelete(req.params.id);
+        
+        res.json({ message: 'Task deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting task:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -259,7 +399,7 @@ async function initializeDatabase() {
         if (userCount === 0) {
             console.log('Adding default users to database...');
             const defaultUsers = [
-                { name: "Tee Johnson", email: "tee@example.com", role: "Admin", password: "password123" },
+                { name: "TeeN", email: "tee@example.com", role: "Admin", password: "password123" },
                 { name: "Alex Chen", email: "alex@example.com", role: "Project Manager", password: "password123" },
                 { name: "Maria Garcia", email: "maria@example.com", role: "Team Member", password: "password123" },
                 { name: "David Wilson", email: "david@example.com", role: "Team Member", password: "password123" }
